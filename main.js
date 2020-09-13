@@ -1,13 +1,6 @@
 // Modules to control application life and create native browser window
-const {
-	app,
-	BrowserWindow,
-	ipcMain,
-	dialog,
-	nativeImage
-} = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
-const fs = require('fs');
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
@@ -69,66 +62,4 @@ ipcMain.on('open-dialog', (event, arg) => {
 			if (filePaths) event.sender.send('selected-items', filePaths);
 		}
 	);
-});
-ipcMain.on('save-file-dialog', (event, args) => {
-	dialog.showSaveDialog(
-		{
-			title: 'Save Dialog',
-			defaultPath:
-				process.platform === 'darwin'
-					? '/Users/haidermalik504/downloads/test/greet.txt'
-					: 'windows_path',
-			filters: [{ name: 'Text', extensions: 'txt' }],
-			buttonLabel: 'Save'
-		},
-		filename => {
-			console.log(filename);
-			fs.writeFile(filename, 'Hello there!', (err, data) => {
-				if (err) {
-					console.error(err);
-					return;
-				}
-				console.log('File saved!');
-			});
-		}
-	);
-});
-
-const errorIcon = nativeImage.createFromPath('images/error.png');
-const infoIcon = nativeImage.createFromPath('images/info.png');
-const questionIcon = nativeImage.createFromPath('images/question.png');
-ipcMain.on('message-dialog', (event, dialogType) => {
-	// console.log(dialogType);
-	let iconType = '';
-	switch (dialogType) {
-		case 'error':
-			iconType = errorIcon;
-			break;
-
-		case 'question':
-			iconType = questionIcon;
-			break;
-		case 'info':
-			iconType = infoIcon;
-			break;
-		default:
-			break;
-	}
-	dialog.showMessageBox(
-		{
-			type: dialogType,
-			icon: iconType,
-			defaultId: 1,
-			title: 'Message here',
-			detail: 'Awesome message here',
-			message: 'saved successfully!',
-			buttons: ['Save', 'Cancel', "Don't Save"] //right to left
-		},
-		response => {
-			console.log(response);
-		}
-	);
-});
-ipcMain.on('error-box', () => {
-	dialog.showErrorBox('Opps', 'something went wrong');
 });
