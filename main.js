@@ -1,65 +1,69 @@
 // Modules to control application life and create native browser window
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
-const path = require('path');
-
+const { app, Menu, BrowserWindow, ipcMain, dialog } = require("electron");
+const path = require("path");
+const Window = require("./window");
+const { getTodos, addTodo, updateTodo } = require("./DataStore");
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
-require('electron-reload')(__dirname, {
-	electron: path.join(__dirname, 'node_modules', '.bin', 'electron')
-});
-let mainWindow;
+// require("electron-reload")(__dirname, {
+//   electron: path.join(__dirname, "node_modules", ".bin", "electron"),
+// });
+let mainWindow = null;
+function initializeMainWindow() {
+  mainWindow = new Window({
+    file: path.join(__dirname, "renderer", "index.html"),
+    height: 800,
+	width: 800,
+	showDevTools: true
+  });
 
-function createWindow() {
-	// Create the browser window.
-	mainWindow = new BrowserWindow({ width: 800, height: 600 });
-
-	// and load the index.html of the app.
-	mainWindow.loadFile('index.html');
-	// Open the DevTools.
-	mainWindow.webContents.openDevTools();
-	// Emitted when the window is closed.
-	mainWindow.on('closed', function() {
-		// Dereference the window object, usually you would store windows
-		// in an array if your app supports multi windows, this is the time
-		// when you should delete the corresponding element.
-		mainWindow = null;
-	});
+  mainWindow.once("show", (event) => {
+	mainWindow.webContents.send("fetch-todos", getTodos());
+	require('devtron').install()
+  });
 }
 
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
-app.on('ready', () => {
-	createWindow();
+function createMenu() {
+  let menu = Menu.buildFromTemplate([
+    {
+      label: process.platform === "darwin" ? app.getName() : "Electron Todo",
+      submenu: [
+        {
+          label: "Add Todo",
+          click: () => {
+            const addToWin = new Window({
+              file: path.join(__dirname, "renderer", "todo_form.html"),
+              height: 400,
+			  width: 400,
+			  parent: mainWindow
+            });
+          },
+        },
+      ],
+    },
+  ]);
+  Menu.setApplicationMenu(menu);
+}
+
+function main() {
+  initializeMainWindow();
+  createMenu();
+}
+
+app.on("ready", main);
+
+app.on("window-all-closed", () => {
+  app.quit();
 });
 
-// Quit when all windows are closed.
-app.on('window-all-closed', function() {
-	// On OS X it is common for applications and their menu bar
-	// to stay active until the user quits explicitly with Cmd + Q
-	if (process.platform !== 'darwin') {
-		app.quit();
-	}
-});
+ipcMain.on('save-todo', (event, newTodo) => {
+	addTodo(newTodo);
+	mainWindow.send('fetch-todos', getTodos());
+})
 
-app.on('activate', function() {
-	// On OS X it's common to re-create a window in the app when the
-	// dock icon is clicked and there are no other windows open.
-	if (mainWindow === null) {
-		createWindow();
-	}
-});
 
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and require them here.
-ipcMain.on('open-dialog', (event, arg) => {
-	dialog.showOpenDialog(
-		{
-			properties: ['openDirectory', 'openFile', 'multiSelections'],
-			filters: [{ name: 'Image', extensions: ['jpeg', 'png', 'gif'] }]
-		},
-		filePaths => {
-			if (filePaths) event.sender.send('selected-items', filePaths);
-		}
-	);
-});
+ipcMain.on('update-todo', (event, newTodoId) => {
+	console.log('updating todo', newTodoId);
+	updateTodo(newTodoId);
+	mainWindow.send('fetch-todos', getTodos());
+})
